@@ -207,7 +207,11 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 .dot.pulse { animation: pulse 1.8s ease-in-out infinite; }
 
 /* 5. grid --------------------------------------------------------------- */
-.board { display: inline-grid; grid-template-columns: 22px 1fr; grid-template-rows: 22px 1fr; gap: 4px; }
+/* `grid` rather than `inline-grid`: an inline grid shrinks to its contents,
+   which collapsed the board to a thumbnail wherever its parent wasn't a flex
+   container (the admin panel). Full width, and the grid's aspect-ratio keeps
+   it square. */
+.board { display: grid; width: 100%; grid-template-columns: 26px 1fr; grid-template-rows: 22px 1fr; gap: 4px; }
 
 .board .corner { grid-area: 1 / 1; }
 .board .col-labels, .board .row-labels {
@@ -538,6 +542,18 @@ table.data .rank { color: var(--dim); font-family: var(--mono); width: 34px; }
 table.data tr.gold td { color: #ffe9a8; }
 
 .scrubber { width: 100%; accent-color: var(--cyan); }
+
+/* The admin page is a monitoring screen, usually on the biggest display in
+   the room, so let it use more width than the player pages. */
+#app.shell { max-width: 1600px; }
+
+/* the admin's two live boards - the main thing being watched, so give them room */
+#adminBoards { gap: 16px; }
+#adminBoards .panel-body { padding: 14px 18px 18px; }
+#adminBoards .board { max-width: 540px; margin: 0 auto; }
+#adminBoards .col-labels, #adminBoards .row-labels { font-size: 11px; }
+
+#replayBoards .board { max-width: 400px; margin: 0 auto; }
 
 /* projector */
 .projector { padding: 26px 30px; }
