@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Battleship &middot; Join</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9875;</text></svg>">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <main class="join-page">
+    <section class="panel join-card">
+      <div class="radar"></div>
+      <div class="eyebrow">Division Team Building</div>
+      <h1 style="margin-top:8px">Battleship</h1>
+      <p class="tag">Two teams. One ocean. Enter your team name to take a side.</p>
+
+      <form class="join-form" id="form">
+        <input class="input" id="name" maxlength="24" autocomplete="off"
+               placeholder="Your team name" required>
+        <div class="error-line" id="error"></div>
+        <button class="btn btn-primary" type="submit" id="submit"
+                style="padding:14px">Enter the battle</button>
+      </form>
+
+      <div id="status" class="muted" style="margin-top:20px;font-size:12px"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/static/js/join.js"></script>
+</body>
+</html>

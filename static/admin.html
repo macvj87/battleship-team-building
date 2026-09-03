@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battleship &middot; Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128737;</text></svg>">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <!-- shown when no (or a wrong) admin key is supplied -->
+  <main class="join-page" id="gate">
+    <section class="panel join-card">
+      <div class="eyebrow">Restricted</div>
+      <h1 style="margin-top:8px;font-size:24px">Admin access</h1>
+      <p class="tag">Enter the admin key printed in the server terminal.</p>
+      <form class="join-form" id="gateForm">
+        <input class="input mono" id="gateKey" placeholder="ADMIN KEY" autocomplete="off" style="text-transform:uppercase">
+        <div class="error-line" id="gateError"></div>
+        <button class="btn btn-primary" type="submit">Unlock</button>
+      </form>
+    </section>
+  </main>
+
+  <div class="shell hidden" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6z"/>
+        </svg>
+        Battleship Control
+      </div>
+      <span class="badge" id="connection"><i class="dot pulse"></i> connecting</span>
+      <div class="spacer"></div>
+      <div id="clockHost"></div>
+    </header>
+
+    <div class="admin-layout">
+      <!-- ---------------- left column: setup and controls ---------------- -->
+      <aside class="stack">
+        <div class="panel">
+          <div class="panel-head"><div class="eyebrow">Share with the teams</div></div>
+          <div class="panel-body stack">
+            <div class="url-box">
+              <code id="lanUrl">…</code>
+              <button class="btn btn-sm" id="copyUrl">Copy</button>
+            </div>
+            <div class="row" style="font-size:12px">
+              <a class="btn btn-sm grow" id="projectorLink" href="/board" target="_blank">Open projector view</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="eyebrow">Teams</div><div class="spacer"></div>
+            <span class="badge" id="phaseBadge">lobby</span></div>
+          <div class="panel-body stack" id="teams"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="eyebrow">Timers</div></div>
+          <div class="panel-body stack">
+            <div class="field-row">
+              <div class="field">
+                <label>Placement (sec)</label>
+                <input class="input mono" id="placementSeconds" type="number" min="30" max="1800" step="10">
+              </div>
+              <div class="field">
+                <label>Per turn (sec)</label>
+                <input class="input mono" id="turnSeconds" type="number" min="10" max="600" step="5">
+              </div>
+            </div>
+            <button class="btn btn-sm" id="applyTimers">Apply timers</button>
+            <div class="muted" style="font-size:11px">Timers can only change before the battle starts.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="eyebrow">Match control</div></div>
+          <div class="panel-body stack">
+            <div class="row">
+              <button class="btn btn-sm grow" id="pauseBtn">Pause</button>
+              <button class="btn btn-sm grow" id="skipBtn">Skip turn</button>
+            </div>
+            <button class="btn btn-sm" id="startBtn">Force start battle</button>
+            <button class="btn btn-sm btn-danger" id="endBtn">End match now</button>
+            <hr style="border:none;border-top:1px solid var(--line-soft);margin:2px 0">
+            <button class="btn btn-sm" id="rematchBtn">Rematch (same teams)</button>
+            <button class="btn btn-sm btn-danger" id="resetBtn">New game (clear teams)</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ---------------- right column: live view and history ------------ -->
+      <section class="stack">
+        <div class="tabs">
+          <button class="tab active" data-tab="live">Live match</button>
+          <button class="tab" data-tab="history">History &amp; standings</button>
+        </div>
+
+        <!-- live -->
+        <div class="stack" id="tabLive">
+          <div class="duel" id="adminBoards"></div>
+          <div class="panel">
+            <div class="panel-head"><div class="eyebrow">Move log</div><div class="spacer"></div>
+              <span class="muted" style="font-size:11px" id="moveCount"></span></div>
+            <div class="panel-body"><div class="feed" id="feed" style="max-height:420px"></div></div>
+          </div>
+        </div>
+
+        <!-- history -->
+        <div class="stack hidden" id="tabHistory">
+          <div class="panel">
+            <div class="panel-head"><div class="eyebrow">All-time standings</div><div class="spacer"></div>
+              <a class="btn btn-sm" id="csvLink" href="#">Download CSV</a></div>
+            <div class="panel-body" style="padding:0 6px 6px">
+              <table class="data" id="standings"></table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><div class="eyebrow">Past matches</div></div>
+            <div class="panel-body" style="padding:0 6px 6px">
+              <table class="data" id="games"></table>
+            </div>
+          </div>
+
+          <!-- playback -->
+          <div class="panel hidden" id="replayPanel">
+            <div class="panel-head">
+              <div class="eyebrow">Playback</div>
+              <div class="spacer"></div>
+              <span class="badge" id="replayTitle"></span>
+              <button class="btn btn-sm" id="replayClose">Close</button>
+            </div>
+            <div class="panel-body stack">
+              <div class="duel" id="replayBoards"></div>
+              <div class="row">
+                <button class="btn btn-sm" id="replayBack">‹ Back</button>
+                <button class="btn btn-sm btn-primary" id="replayPlay">Play</button>
+                <button class="btn btn-sm" id="replayNext">Next ›</button>
+                <input class="scrubber grow" id="replayScrub" type="range" min="0" max="0" value="0">
+                <span class="mono muted" id="replayPos" style="font-size:12px">0 / 0</span>
+              </div>
+              <div class="feed" id="replayFeed" style="max-height:220px"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/admin.js"></script>
+</body>
+</html>

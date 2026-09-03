@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Battleship</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9875;</text></svg>">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2"/><path d="M12 7v14"/><path d="M6 11h12"/>
+          <path d="M4 15a8 8 0 0 0 16 0"/>
+        </svg>
+        Battleship
+      </div>
+      <span class="badge" id="connection"><i class="dot pulse"></i> connecting</span>
+      <div class="spacer"></div>
+      <div id="clockHost"></div>
+      <button class="btn btn-sm" id="soundToggle" title="Sound">🔈</button>
+    </header>
+
+    <div class="versus" id="versus"></div>
+
+    <!-- waiting for the other team -->
+    <section class="panel waiting-card hidden" id="lobbyView">
+      <div class="radar" style="width:88px;height:88px"></div>
+      <h2>Waiting for the other team</h2>
+      <p class="muted" id="lobbyNote">Share the game link and they'll appear here.</p>
+    </section>
+
+    <!-- arrange your fleet -->
+    <section class="split hidden" id="placementView">
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head"><div class="eyebrow">Your fleet</div></div>
+          <div class="panel-body stack">
+            <div class="tray" id="tray"></div>
+            <div class="row wrap">
+              <button class="btn btn-sm grow" id="rotateBtn">Rotate</button>
+              <button class="btn btn-sm grow" id="randomBtn">Randomize</button>
+              <button class="btn btn-sm grow" id="clearBtn">Clear</button>
+            </div>
+            <button class="btn btn-primary" id="readyBtn" disabled>Lock in fleet</button>
+          </div>
+        </div>
+        <div class="hint">
+          Pick a ship, then tap a square to drop it.
+          Use <strong>Rotate</strong> (or press <kbd>R</kbd>) to turn it.
+          Tap a placed ship to move it again.
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="eyebrow">Your waters</div>
+          <div class="spacer"></div>
+          <span class="badge" id="placementStatus">0 / 5 placed</span>
+        </div>
+        <div class="panel-body">
+          <div class="board-wrap" id="placementBoard" style="max-width:520px;margin:0 auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- the battle -->
+    <section class="hidden" id="battleView">
+      <div class="turn-banner" id="turnBanner" style="margin-bottom:18px"></div>
+      <div class="duel">
+        <div class="panel">
+          <div class="panel-head">
+            <div class="board-title"><span>Enemy waters</span><span class="name" id="enemyName">—</span></div>
+          </div>
+          <div class="panel-body"><div class="board-wrap" id="enemyBoard"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div class="board-title"><span>Your fleet</span><span class="name" id="yourName">—</span></div>
+          </div>
+          <div class="panel-body"><div class="board-wrap" id="yourBoard"></div></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-head"><div class="eyebrow">Battle log</div></div>
+        <div class="panel-body"><div class="feed" id="feed"></div></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="overlayHost"></div>
+  <script type="module" src="/static/js/play.js"></script>
+</body>
+</html>

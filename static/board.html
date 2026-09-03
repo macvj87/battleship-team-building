@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battleship &middot; Live Board</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128225;</text></svg>">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <div class="shell projector">
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2"/><path d="M12 7v14"/><path d="M6 11h12"/><path d="M4 15a8 8 0 0 0 16 0"/>
+        </svg>
+        Battleship &middot; Live
+      </div>
+      <div class="spacer"></div>
+      <div class="turn-banner" id="turnBanner" style="margin-right:16px">Waiting…</div>
+      <div id="clockHost"></div>
+      <button class="btn btn-sm" id="soundToggle" title="Sound" style="margin-left:12px">🔈</button>
+    </header>
+
+    <div id="waiting" class="panel waiting-card">
+      <div class="radar" style="width:104px;height:104px"></div>
+      <h2>Standing by</h2>
+      <p class="muted" id="waitingNote">Waiting for both teams to join.</p>
+    </div>
+
+    <div class="duel hidden" id="duel">
+      <div>
+        <div class="team-head" id="head1">
+          <div>
+            <h2 id="name1">—</h2>
+            <div class="hp" id="hp1"></div>
+          </div>
+          <div class="mono muted" id="stat1"></div>
+        </div>
+        <div class="panel"><div class="panel-body"><div id="board1"></div></div></div>
+      </div>
+      <div>
+        <div class="team-head" id="head2">
+          <div>
+            <h2 id="name2">—</h2>
+            <div class="hp" id="hp2"></div>
+          </div>
+          <div class="mono muted" id="stat2"></div>
+        </div>
+        <div class="panel"><div class="panel-body"><div id="board2"></div></div></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:22px">
+      <div class="panel-head"><div class="eyebrow">Live feed</div></div>
+      <div class="panel-body"><div class="feed" id="feed" style="max-height:240px"></div></div>
+    </div>
+  </div>
+
+  <div id="overlayHost"></div>
+  <script type="module" src="/static/js/projector.js"></script>
+</body>
+</html>
