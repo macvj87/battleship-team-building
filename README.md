@@ -6,12 +6,24 @@ their own laptop with a team name.
 
 ## Running it
 
+**macOS / Linux**
+
 ```bash
 ./run.sh
 ```
 
-The first run creates a Python virtual environment and installs the two
-dependencies (FastAPI and uvicorn). Every run after that starts immediately.
+**Windows** — double-click `run.bat`, or run it from Command Prompt or
+PowerShell:
+
+```
+run.bat
+```
+
+Either way, the first run creates a Python virtual environment and installs the
+two dependencies (FastAPI and uvicorn). Every run after that starts
+immediately. On Windows you need Python 3.9 or newer from
+[python.org](https://www.python.org/downloads/) — tick **"Add python.exe to
+PATH"** during setup.
 
 The terminal prints three links:
 
@@ -28,7 +40,19 @@ fog-of-war view to put on a TV or projector for everyone else watching.
 To keep the same admin key between restarts:
 
 ```bash
-ADMIN_KEY=CAPTAIN ./run.sh
+ADMIN_KEY=CAPTAIN PORT=9000 ./run.sh
+```
+
+On Windows the same thing, from Command Prompt:
+
+```
+set ADMIN_KEY=CAPTAIN && set PORT=9000 && run.bat
+```
+
+...or from PowerShell:
+
+```
+$env:ADMIN_KEY="CAPTAIN"; $env:PORT="9000"; .\run.bat
 ```
 
 Stop the server with `Ctrl-C`.
@@ -134,6 +158,18 @@ volume if the history matters to you.
 serverless functions; this game needs a process that stays alive holding the
 match state with a WebSocket open to each team.
 
+### Check the host machine's firewall first
+
+Before blaming the network, make sure the host is allowed to accept incoming
+connections.
+
+* **macOS** prompts the first time the server starts — click **Allow**.
+* **Windows** shows "Windows Defender Firewall has blocked some features of
+  this app" the first time Python opens a port. Tick **Private networks** and
+  click **Allow access**. If you dismissed it by accident the teams will just
+  see the join page fail to load; re-allow it under Windows Security →
+  Firewall & network protection → Allow an app through firewall.
+
 Finally, if the LAN is the problem but the machines are in one room, a cheap
 unmanaged switch and a few ethernet cables also works, and needs no internet.
 
@@ -147,6 +183,7 @@ unmanaged switch and a few ethernet cables also works, and needs no internet.
 | `store.py` | SQLite persistence — teams, games, players, events |
 | `server.py` | HTTP routes, the WebSocket hub, the server-side clock |
 | `static/` | The four pages, one stylesheet, and small ES modules |
+| `run.sh` / `run.bat` | Launchers for macOS/Linux and for Windows |
 
 Everything the browser loads is served from this folder — no CDN, no npm, no
 build step — so it works on a network with no internet access.
