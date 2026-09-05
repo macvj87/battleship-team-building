@@ -158,6 +158,14 @@ volume if the history matters to you.
 serverless functions; this game needs a process that stays alive holding the
 match state with a WebSocket open to each team.
 
+### One team's screen looks different to the other's
+
+Their browser is holding an old copy of the game. The server tells browsers to
+revalidate every page and asset on each load, so this should not happen — but a
+laptop that cached a copy *before* that rule existed can still be sitting on it.
+One hard refresh clears it for good: **Ctrl-Shift-R** on Windows, **Cmd-Shift-R**
+on a Mac.
+
 ### Check the host machine's firewall first
 
 Before blaming the network, make sure the host is allowed to accept incoming

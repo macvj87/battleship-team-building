@@ -168,6 +168,29 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Battleship LAN", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
+# The four pages, for the cache rule below.
+PAGE_PATHS = {"/", "/play", "/admin", "/board"}
+
+
+@app.middleware("http")
+async def always_revalidate(request: Request, call_next):
+    """Never let a browser reuse a page or asset without checking with us.
+
+    Without this the responses carry no Cache-Control at all, so browsers fall
+    back to heuristic caching and can serve a stale copy for hours without
+    asking. During a match that means one team quietly playing an older build
+    of the game than the other - different layout, missing features - which is
+    very hard to spot from the outside.
+
+    Everything here is a few kilobytes over a LAN, and the files already carry
+    ETags, so revalidating each time costs a handful of 304s.
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path in PAGE_PATHS or path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
 
 def page(name: str) -> FileResponse:
     return FileResponse(os.path.join(STATIC, name))
