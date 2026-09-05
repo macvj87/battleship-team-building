@@ -513,7 +513,30 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   -webkit-backdrop-filter: blur(10px);
   animation: fade-in 0.4s ease;
 }
+.overlay-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(16, 33, 55, 0.85);
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.overlay-close:hover {
+  color: var(--text);
+  border-color: rgba(90, 170, 220, 0.45);
+  transform: scale(1.06);
+}
+
 .victory { text-align: center; max-width: 640px; width: 100%; }
+.victory .dismiss { margin-top: 26px; animation: rise-in 0.7s 0.45s cubic-bezier(0.2, 1, 0.3, 1) both; }
 .victory .crest {
   width: 96px; height: 96px; margin: 0 auto 22px;
   display: flex; align-items: center; justify-content: center;
@@ -523,6 +546,12 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   animation: crest-in 0.8s cubic-bezier(0.2, 1.1, 0.3, 1) both;
 }
 .victory .crest svg { width: 46px; height: 46px; color: var(--cyan); }
+/* Calmer crest for the team that lost - an anchor, not a trophy. */
+.victory .crest.quiet {
+  border-color: rgba(125, 151, 176, 0.35);
+  background: radial-gradient(circle at 50% 35%, rgba(125, 151, 176, 0.26), transparent 70%);
+}
+.victory .crest.quiet svg { color: #9fb6cd; }
 .victory h1 {
   font-size: clamp(38px, 8vw, 68px);
   line-height: 1;
