@@ -49,6 +49,16 @@ function boot() {
     onClose() { $('#connection').className = 'badge warn'; $('#connection').innerHTML = '<i class="dot pulse"></i> reconnecting'; },
   });
   net.on('clock', (m) => gameClock.sync(m.remaining, m.total, m.paused));
+  net.on('events', (m) => m.events.forEach((event) => {
+    if (event.type === 'shot' && event.payload.sunk) {
+      // The ship belongs to whoever was being shot at.
+      pendingSunk = {
+        slot: event.payload.slot === 1 ? 2 : 1,
+        name: event.payload.sunk,
+        cell: [event.payload.row, event.payload.col],
+      };
+    }
+  }));
   net.on('state', (state) => { view = state; renderLive(); });
 
   wireControls();
@@ -56,6 +66,7 @@ function boot() {
 }
 
 const liveBoards = {};   // slot -> BoardView
+let pendingSunk = null;  // a ship just went down; mark it after the redraw
 
 function renderLive() {
   $('#phaseBadge').textContent = view.paused ? 'paused' : view.phase;
@@ -118,6 +129,13 @@ function renderLive() {
     if (label) label.textContent = team ? team.name : '—';
     const board = (view.boards || {})[String(slot)];
     liveBoards[slot].render(fromServer(board));
+  }
+
+  if (pendingSunk && liveBoards[pendingSunk.slot]) {
+    const board = (view.boards || {})[String(pendingSunk.slot)];
+    const ship = ((board && board.ships) || []).find((s) => s.sunk && s.name === pendingSunk.name);
+    liveBoards[pendingSunk.slot].celebrateSunk((ship && ship.cells) || [pendingSunk.cell], pendingSunk.name);
+    pendingSunk = null;
   }
 
   // Count from the running score - the log sent to clients is trimmed.

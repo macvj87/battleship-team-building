@@ -121,10 +121,39 @@ export class BoardView {
     if (this.ghost) { this.ghost.remove(); this.ghost = null; }
   }
 
-  shake() {
-    this.grid.classList.remove('shaking');
+  shake(hard = false) {
+    const cls = hard ? 'shaking-hard' : 'shaking';
+    this.grid.classList.remove('shaking', 'shaking-hard');
     void this.grid.offsetWidth;          // restart the animation
-    this.grid.classList.add('shaking');
+    this.grid.classList.add(cls);
+  }
+
+  /**
+   * Play the "ship destroyed" moment: a shockwave over the wreck and a name
+   * plate across the board.
+   *
+   * These are appended straight to the grid and remove themselves when they
+   * finish. render() only clears `this.overlay`, so a redraw mid-animation
+   * doesn't cut the celebration short.
+   */
+  celebrateSunk(cells, name) {
+    if (!cells || !cells.length) return;
+    const rows = cells.map((cell) => cell[0]);
+    const cols = cells.map((cell) => cell[1]);
+
+    const burst = el('div', { class: 'sunk-burst' });
+    burst.style.gridRow = `${Math.min(...rows) + 1} / span ${Math.max(...rows) - Math.min(...rows) + 1}`;
+    burst.style.gridColumn = `${Math.min(...cols) + 1} / span ${Math.max(...cols) - Math.min(...cols) + 1}`;
+
+    // The plate spans the whole board and centres itself, so a two-cell
+    // destroyer's label doesn't get clipped by the grid's edges.
+    const plate = el('div', { class: 'sunk-plate' }, [
+      el('span', { class: 'skull' }, '☠'),
+      el('span', {}, `${name} sunk`),
+    ]);
+
+    this.grid.append(burst, plate);
+    setTimeout(() => { burst.remove(); plate.remove(); }, 2000);
   }
 }
 

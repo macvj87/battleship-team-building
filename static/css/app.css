@@ -285,10 +285,18 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   border: 1px dashed rgba(190, 220, 245, 0.18);
 }
 .ship-piece.sunk {
-  background: linear-gradient(160deg, #6d2130, #3a0f19);
-  border-color: rgba(255, 77, 109, 0.55);
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(255, 77, 109, 0.22) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg, #7d2334, #380d17);
+  border-color: rgba(255, 90, 120, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 200, 210, 0.18),
+    0 0 22px rgba(255, 77, 109, 0.45),
+    0 3px 12px rgba(0, 0, 0, 0.5);
   animation: sink-flash 0.9s ease;
 }
+.ship-piece.sunk::after { border-color: rgba(255, 160, 180, 0.3); }
 .ship-piece.ghost { opacity: 0.62; z-index: 4; animation: none; }
 .ship-piece.ghost.invalid {
   background: linear-gradient(160deg, #7a2434, #4a1220);
@@ -320,6 +328,89 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 .mark.sunk::before { background: radial-gradient(circle at 50% 40%, #ffd7de, var(--red) 45%, #7d0d22 100%); box-shadow: 0 0 16px rgba(255, 77, 109, 0.8); }
 .mark.fresh.miss { animation: splash 0.65s ease-out; }
 .mark.fresh.hit, .mark.fresh.sunk { animation: blast 0.6s ease-out; }
+
+/* --- fleet roster beside each board --------------------------------------
+   One chip per ship, its pips showing how long it is. Sunk ships stay in the
+   list rather than disappearing, so you can see what you have already
+   accounted for and what is still hiding out there. */
+.fleet-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.fleet-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(10, 23, 37, 0.55);
+  font: 600 11px/1 var(--sans);
+  color: var(--text);
+  transition: opacity 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+.fleet-chip .pips { display: flex; gap: 2px; }
+.fleet-chip .pips i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(160deg, #5c7c9e, #2b4159);
+  border: 1px solid rgba(150, 190, 225, 0.25);
+}
+
+/* Ships you can still be hit by, or still have to find, read as live targets. */
+#enemyFleet .fleet-chip:not(.sunk) {
+  border-color: rgba(60, 224, 255, 0.32);
+  background: rgba(20, 60, 90, 0.4);
+}
+
+.fleet-chip.sunk {
+  opacity: 0.6;
+  border-color: rgba(255, 77, 109, 0.4);
+  background: rgba(90, 20, 35, 0.3);
+}
+.fleet-chip.sunk .nm { text-decoration: line-through; color: var(--red); }
+.fleet-chip.sunk .pips i {
+  background: rgba(255, 77, 109, 0.45);
+  border-color: rgba(255, 77, 109, 0.5);
+}
+
+/* --- "ship destroyed" moment ---------------------------------------------
+   A shockwave over the wreck plus a name plate across the board. Both are
+   appended to the grid and remove themselves; see BoardView.celebrateSunk. */
+.sunk-burst {
+  z-index: 6;
+  place-self: stretch;
+  margin: 1px;
+  border-radius: 8px;
+  pointer-events: none;
+  animation: sunk-burst 1s cubic-bezier(0.15, 0.85, 0.3, 1) forwards;
+}
+
+.sunk-plate {
+  grid-area: 1 / 1 / -1 / -1;
+  z-index: 7;
+  place-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: 700 12px/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(180deg, #ff4d6d, #a3132c);
+  border: 1px solid rgba(255, 190, 200, 0.5);
+  box-shadow: 0 10px 34px rgba(255, 77, 109, 0.55), 0 0 0 6px rgba(255, 77, 109, 0.12);
+  pointer-events: none;
+  animation: sunk-plate 2s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+}
+.sunk-plate .skull { font-size: 14px; }
 
 .board-wrap { display: flex; flex-direction: column; gap: 10px; }
 .board-title {
@@ -586,9 +677,44 @@ table.data tr.gold td { color: #ffe9a8; }
 @keyframes crest-in  { from { opacity: 0; transform: scale(0.5) rotate(-25deg); } to { opacity: 1; transform: none; } }
 @keyframes toast-in  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes urgent-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+@keyframes sunk-burst {
+  0% {
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.9), 0 0 40px 10px rgba(255, 220, 190, 0.9);
+    transform: scale(1.12);
+  }
+  35% {
+    background: rgba(255, 120, 90, 0.4);
+    box-shadow: 0 0 0 10px rgba(255, 77, 109, 0.35), 0 0 30px 4px rgba(255, 120, 90, 0.5);
+    transform: scale(1);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 26px rgba(255, 77, 109, 0), 0 0 0 0 rgba(255, 120, 90, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes sunk-plate {
+  0%   { opacity: 0; transform: scale(0.55) rotate(-6deg); }
+  14%  { opacity: 1; transform: scale(1.14) rotate(2deg); }
+  24%  { transform: scale(1) rotate(0deg); }
+  70%  { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.96) translateY(-18px); }
+}
+
+@keyframes shake-hard {
+  10% { transform: translate(-5px, 2px) rotate(-0.6deg); }
+  30% { transform: translate(7px, -3px) rotate(0.7deg); }
+  50% { transform: translate(-8px, 2px) rotate(-0.8deg); }
+  70% { transform: translate(5px, -2px) rotate(0.5deg); }
+  90% { transform: translate(-3px, 1px) rotate(-0.3deg); }
+}
 @keyframes shake     { 10%, 90% { transform: translateX(-2px); } 30%, 70% { transform: translateX(4px); } 50% { transform: translateX(-5px); } }
 
 .shaking { animation: shake 0.45s ease; }
+.shaking-hard { animation: shake-hard 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }

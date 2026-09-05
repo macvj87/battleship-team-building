@@ -227,11 +227,12 @@ class Fleet:
     def to_public_dict(self) -> dict:
         """Fog of war: hits and misses are visible, ship positions are not.
 
-        A sunk ship *is* revealed, which is how the classic board game works.
+        A sunk ship *is* revealed, which is how the classic board game works -
+        so the attacker can finally see the outline of what they destroyed.
         """
         revealed = [cell for s in self.ships if s.sunk for cell in s.cells()]
         return {
-            "ships": [s.to_dict(reveal=False) for s in self.ships],
+            "ships": [s.to_dict(reveal=s.sunk) for s in self.ships],
             "incoming": {_cell_key(cell): result for cell, result in self.incoming.items()},
             "sunkCells": [_cell_key(cell) for cell in revealed],
         }

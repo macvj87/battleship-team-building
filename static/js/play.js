@@ -35,6 +35,7 @@ let selected = null;             // ship key being positioned
 let horizontal = true;
 let hover = null;                // [row, col] under the cursor
 let freshCells = new Set();      // cells that should animate on the next render
+let pendingSunk = null;          // a ship went down; celebrate it after the redraw
 let lastTurn = null;
 let overlayShown = false;
 
@@ -82,11 +83,16 @@ function handleEvent(event) {
   }
   const p = event.payload;
   freshCells.add(key(p.row, p.col));
-  if (p.sunk) sfx.sunk();
-  else if (p.result === 'hit') sfx.hit();
-  else sfx.miss();
-  // Being shot at is worth a jolt.
-  if (view && p.slot !== view.you && p.result === 'hit') yourBoard.shake();
+  if (p.sunk) {
+    sfx.sunk();
+    pendingSunk = { by: p.slot, name: p.sunk, cell: [p.row, p.col] };
+  } else if (p.result === 'hit') {
+    sfx.hit();
+  } else {
+    sfx.miss();
+  }
+  // Being shot at is worth a jolt; losing a whole ship is worth a bigger one.
+  if (view && p.slot !== view.you && p.result === 'hit') yourBoard.shake(!!p.sunk);
 }
 
 // ---------------------------------------------------------------- render
@@ -102,8 +108,12 @@ function render() {
   show(view.phase === 'lobby' ? 'lobby' : view.phase === 'placement' ? 'placement' : 'battle');
   gameClock.setLabel(view.phase === 'placement' ? 'To deploy' : view.paused ? 'Paused' : 'Your turn');
 
-  if (view.phase === 'placement') renderPlacement();
-  else renderBattle();
+  if (view.phase === 'placement') {
+    renderPlacement();
+  } else {
+    renderBattle();
+    if (pendingSunk) { playSunk(pendingSunk); pendingSunk = null; }
+  }
 
   renderFeed(feedHost, view.log);
   if (!waitingOnUs()) document.body.classList.remove('urgent');
@@ -274,6 +284,9 @@ function renderBattle() {
   if (view.turn !== lastTurn && myTurn) sfx.turn();
   lastTurn = view.turn;
 
+  renderFleetStatus($('#enemyFleet'), $('#enemyAfloat'), view.enemyBoard, 'left to sink');
+  renderFleetStatus($('#yourFleet'), $('#yourAfloat'), view.yourBoard, 'still afloat');
+
   yourBoard.render({ ...fromServer(view.yourBoard, { fresh: freshCells }) });
   enemyBoard.render({ ...fromServer(view.enemyBoard, { fresh: freshCells }), aimable: myTurn });
 }
@@ -295,6 +308,44 @@ function renderTurnBanner() {
     : myTurn && urgent ? 'Hurry! A random shot is fired when time runs out'
     : myTurn ? 'Your turn — pick a target'
     : `Waiting for ${them ? them.name : 'the other team'}`;
+}
+
+/**
+ * The roster beside each board: which ships are still out there and which are
+ * on the bottom.
+ *
+ * Enemy ships report their name, size and sunk state even under fog of war -
+ * only their *position* is hidden - so a team can see that, say, only the
+ * Carrier and a Cruiser are left and hunt for a five-long gap accordingly.
+ */
+function renderFleetStatus(host, badge, board, suffix) {
+  const ships = (board && board.ships) || [];
+  host.textContent = '';
+
+  for (const ship of ships) {
+    host.append(el('div', {
+      class: `fleet-chip${ship.sunk ? ' sunk' : ''}`,
+      title: `${ship.name} — ${ship.size} cells${ship.sunk ? ' — sunk' : ''}`,
+    }, [
+      el('span', { class: 'pips' }, Array.from({ length: ship.size }, () => el('i'))),
+      el('span', { class: 'nm' }, ship.name),
+    ]));
+  }
+
+  const afloat = ships.filter((s) => !s.sunk).length;
+  badge.textContent = ships.length ? `${afloat} of ${ships.length} ${suffix}` : '';
+  badge.className = 'badge' + (afloat === 0 ? ' danger' : afloat <= 2 ? ' warn' : '');
+}
+
+/** Wreck shockwave and name plate on whichever board just lost a ship.
+ *  The state has already been redrawn by this point, so a ship the enemy just
+ *  lost is revealed and we can outline it properly. */
+function playSunk({ by, name, cell }) {
+  const theirs = by === view.you;                       // we did the sinking
+  const board = theirs ? enemyBoard : yourBoard;
+  const data = theirs ? view.enemyBoard : view.yourBoard;
+  const ship = ((data && data.ships) || []).find((s) => s.sunk && s.name === name);
+  board.celebrateSunk((ship && ship.cells) || [cell], name);
 }
 
 enemyBoard.listen({

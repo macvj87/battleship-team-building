@@ -13,6 +13,7 @@ $('#clockHost').append(gameClock.node);
 const boards = { 1: new BoardView($('#board1')), 2: new BoardView($('#board2')) };
 let view = null;
 let fresh = new Set();
+let pendingSunk = null;
 let overlayShown = false;
 
 const net = connect({ role: 'board' });
@@ -29,10 +30,17 @@ gameClock.onWarning((secondsLeft) => {
 });
 net.on('events', (m) => m.events.forEach((event) => {
   if (event.type !== 'shot') return;
-  fresh.add(key(event.payload.row, event.payload.col));
-  if (event.payload.sunk) sfx.sunk();
-  else if (event.payload.result === 'hit') sfx.hit();
-  else sfx.miss();
+  const p = event.payload;
+  fresh.add(key(p.row, p.col));
+  if (p.sunk) {
+    sfx.sunk();
+    // The ship belongs to whoever was being shot at.
+    pendingSunk = { slot: p.slot === 1 ? 2 : 1, name: p.sunk, cell: [p.row, p.col] };
+  } else if (p.result === 'hit') {
+    sfx.hit();
+  } else {
+    sfx.miss();
+  }
 }));
 net.on('state', (state) => { view = state; render(); });
 
@@ -61,6 +69,14 @@ function render() {
     for (const ship of (board?.ships || [])) hp.append(el('i', { class: ship.sunk ? 'gone' : '' }));
 
     boards[slot].render(fromServer(board, { fresh }));
+  }
+
+  if (pendingSunk) {
+    const board = (view.boards || {})[String(pendingSunk.slot)];
+    const ship = ((board && board.ships) || []).find((s) => s.sunk && s.name === pendingSunk.name);
+    boards[pendingSunk.slot].celebrateSunk((ship && ship.cells) || [pendingSunk.cell], pendingSunk.name);
+    boards[pendingSunk.slot].shake(true);
+    pendingSunk = null;
   }
 
   renderFeed($('#feed'), view.log, { limit: 25 });
