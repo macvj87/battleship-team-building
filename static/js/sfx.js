@@ -3,7 +3,9 @@
  */
 const KEY = 'battleship.sound';
 let context = null;
-let enabled = localStorage.getItem(KEY) === 'on';
+// Defaults ON: the countdown alert is the main reason sound exists here.
+// Once a viewer flips the toggle their choice is remembered.
+let enabled = localStorage.getItem(KEY) !== 'off';
 
 function ctx() {
   if (!context) context = new (window.AudioContext || window.webkitAudioContext)();
@@ -56,6 +58,18 @@ export const sfx = {
   hit()   { noise({ duration: 0.5, gain: 0.3 }); tone({ type: 'sawtooth', from: 180, to: 40, duration: 0.5, gain: 0.2 }); },
   sunk()  { noise({ duration: 0.9, gain: 0.34 }); tone({ type: 'sawtooth', from: 140, to: 30, duration: 0.9, gain: 0.24 }); tone({ type: 'square', from: 300, to: 90, duration: 0.7, gain: 0.1, delay: 0.1 }); },
   turn()  { tone({ type: 'triangle', from: 780, to: 1180, duration: 0.14, gain: 0.09 }); },
+  /** One beep per second as the clock runs down; the last three are sharper. */
+  tick(secondsLeft) {
+    const urgent = secondsLeft <= 3;
+    tone({
+      type: 'triangle',
+      from: urgent ? 1240 : 820,
+      to: urgent ? 1240 : 820,
+      duration: urgent ? 0.16 : 0.08,
+      gain: urgent ? 0.18 : 0.09,
+    });
+  },
+  timeUp() { tone({ type: 'sawtooth', from: 420, to: 120, duration: 0.6, gain: 0.2 }); },
   win()   { [523, 659, 784, 1047].forEach((f, i) => tone({ type: 'triangle', from: f, to: f, duration: 0.5, gain: 0.13, delay: i * 0.13 })); },
   lose()  { [392, 330, 262].forEach((f, i) => tone({ type: 'triangle', from: f, to: f * 0.98, duration: 0.55, gain: 0.12, delay: i * 0.17 })); },
 };

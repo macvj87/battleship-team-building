@@ -44,6 +44,19 @@ Stop the server with `Ctrl-C`.
    of time fires a random shot for you, so the game never stalls.
 4. **Winner screen** — first team to sink all five enemy ships wins, with
    shots, hits and accuracy for both sides.
+
+In the last 10 seconds of a countdown the screen edge pulses red, the banner
+turns into a warning and a beep sounds once per second (sharper for the final
+three). A team only gets the alert when the clock is running against *them* —
+whoever's turn it is, or anyone still deploying — so nobody is startled while
+they are waiting on the other side. The projector view alerts for whoever is
+on the clock.
+
+Sound is on by default with a toggle in the header of every screen. Browsers
+won't play audio until someone has interacted with the page, which is automatic
+for the teams (they click to place ships and fire) but not for the projector
+view — **click the projector page once after opening it** if you want it to
+beep.
 5. **Report** — the admin panel keeps every past match, with all-time
    standings and move-by-move playback.
 

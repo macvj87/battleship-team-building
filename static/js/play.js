@@ -4,7 +4,7 @@
  * sends what the team clicked. The one exception is the placement preview,
  * which is checked locally so the ghost ship can turn red instantly.
  */
-import { $, el, key, makeClock, toast } from './util.js';
+import { $, el, key, makeClock, toast, WARN_SECONDS } from './util.js';
 import { connect } from './net.js';
 import { BoardView, fromServer } from './boardview.js';
 import { renderFeed } from './feed.js';
@@ -45,7 +45,28 @@ const net = connect({ role: 'player', token: TOKEN }, {
 });
 
 net.on('kicked', () => { localStorage.removeItem('battleship.token'); location.replace('/'); });
-net.on('clock', (m) => gameClock.sync(m.remaining, m.total, m.paused));
+net.on('clock', (m) => {
+  gameClock.sync(m.remaining, m.total, m.paused);
+  const running = m.remaining !== null && !m.paused;
+  document.body.classList.toggle('urgent', running && m.remaining <= WARN_SECONDS && waitingOnUs());
+  renderTurnBanner();
+});
+
+/** Is this clock counting down against *us*? Only then do we sound the alarm -
+ *  there is no point startling a team that is waiting for the other side. */
+function waitingOnUs() {
+  if (!view) return false;
+  if (view.phase === 'placement') {
+    const you = view.teams.find((t) => t.slot === view.you);
+    return !!you && !you.ready;          // still deploying
+  }
+  return view.phase === 'battle' && view.turn === view.you;
+}
+
+// One beep per second over the last few seconds, sharper for the final three.
+gameClock.onWarning((secondsLeft) => {
+  if (waitingOnUs()) sfx.tick(secondsLeft);
+});
 net.on('events', (m) => m.events.forEach(handleEvent));
 net.on('state', (state) => { view = state; render(); });
 
@@ -85,6 +106,7 @@ function render() {
   else renderBattle();
 
   renderFeed(feedHost, view.log);
+  if (!waitingOnUs()) document.body.classList.remove('urgent');
 
   if (view.phase === 'finished' && !overlayShown) {
     overlayShown = true;
@@ -248,17 +270,31 @@ function renderBattle() {
 
   const myTurn = view.phase === 'battle' && view.turn === view.you && !view.paused;
 
-  turnBanner.className = 'turn-banner ' + (view.phase !== 'battle' ? '' : myTurn ? 'yours' : 'waiting');
-  turnBanner.textContent = view.phase === 'finished'
-    ? 'Battle over'
-    : view.paused ? 'Paused by the admin'
-    : myTurn ? 'Your turn — pick a target' : `Waiting for ${them ? them.name : 'the other team'}`;
-
+  renderTurnBanner();
   if (view.turn !== lastTurn && myTurn) sfx.turn();
   lastTurn = view.turn;
 
   yourBoard.render({ ...fromServer(view.yourBoard, { fresh: freshCells }) });
   enemyBoard.render({ ...fromServer(view.enemyBoard, { fresh: freshCells }), aimable: myTurn });
+}
+
+/** Repainted both on new state and on every clock tick, so the warning
+ *  appears the moment the countdown crosses the threshold. */
+function renderTurnBanner() {
+  if (!view) return;
+  const them = view.teams.find((t) => t.slot !== view.you);
+  const myTurn = view.phase === 'battle' && view.turn === view.you && !view.paused;
+  const urgent = document.body.classList.contains('urgent');
+
+  turnBanner.className = 'turn-banner '
+    + (view.phase !== 'battle' ? '' : myTurn ? 'yours' : 'waiting')
+    + (urgent && myTurn ? ' urgent' : '');
+  turnBanner.textContent = view.phase === 'finished'
+    ? 'Battle over'
+    : view.paused ? 'Paused by the admin'
+    : myTurn && urgent ? 'Hurry! A random shot is fired when time runs out'
+    : myTurn ? 'Your turn — pick a target'
+    : `Waiting for ${them ? them.name : 'the other team'}`;
 }
 
 enemyBoard.listen({

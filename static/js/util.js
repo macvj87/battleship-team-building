@@ -52,8 +52,14 @@ export function toast(message) {
   setTimeout(() => node.remove(), 3200);
 }
 
+/** How many seconds are left when we start warning people. */
+export const WARN_SECONDS = 10;
+
 /** Countdown ring + digits. The server sends the truth once a second; we
- *  smooth the gap locally so the ring doesn't tick in jumps. */
+ *  smooth the gap locally so the ring doesn't tick in jumps.
+ *
+ *  Call `onWarning(fn)` to be told once per second over the last
+ *  WARN_SECONDS, which is what drives the audible countdown. */
 export function makeClock(label = 'Time') {
   const value = el('circle', {}, []);
   const root = el('div', { class: 'clock' });
@@ -73,6 +79,8 @@ export function makeClock(label = 'Time') {
   const ring = root.querySelector('.value');
   const digits = root.querySelector('.digits');
   let remaining = null, total = null, paused = false, lastSync = performance.now();
+  let lastWholeSecond = null;
+  let warningHandler = null;
 
   function paint() {
     const now = performance.now();
@@ -81,7 +89,17 @@ export function makeClock(label = 'Time') {
     digits.textContent = clock(shown);
     const fraction = shown !== null && total ? Math.max(0, Math.min(1, shown / total)) : 0;
     ring.style.strokeDashoffset = String(113 * (1 - fraction));
-    root.classList.toggle('low', shown !== null && shown <= 10);
+    root.classList.toggle('low', shown !== null && shown <= WARN_SECONDS);
+
+    // Fire once as each of the last few seconds ticks over.
+    const whole = shown === null ? null : Math.ceil(shown);
+    if (whole !== lastWholeSecond) {
+      if (warningHandler && whole !== null && whole > 0 && whole <= WARN_SECONDS && !paused) {
+        warningHandler(whole);
+      }
+      lastWholeSecond = whole;
+    }
+
     requestAnimationFrame(paint);
   }
   requestAnimationFrame(paint);
@@ -90,5 +108,6 @@ export function makeClock(label = 'Time') {
     node: root,
     setLabel(text) { root.querySelector('.label').textContent = text; },
     sync(r, t, isPaused) { remaining = r; total = t; paused = !!isPaused; lastSync = performance.now(); },
+    onWarning(fn) { warningHandler = fn; },
   };
 }

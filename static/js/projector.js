@@ -1,6 +1,6 @@
 /* The big-screen view. Fog of war on both sides, so nothing is spoiled for
  * the room: only hits, misses and ships that have already been sunk. */
-import { $, el, key, makeClock } from './util.js';
+import { $, el, key, makeClock, WARN_SECONDS } from './util.js';
 import { connect } from './net.js';
 import { BoardView, fromServer } from './boardview.js';
 import { renderFeed } from './feed.js';
@@ -16,7 +16,17 @@ let fresh = new Set();
 let overlayShown = false;
 
 const net = connect({ role: 'board' });
-net.on('clock', (m) => gameClock.sync(m.remaining, m.total, m.paused));
+net.on('clock', (m) => {
+  gameClock.sync(m.remaining, m.total, m.paused);
+  // The room is watching this screen, so warn for whoever is on the clock.
+  const live = view && (view.phase === 'battle' || view.phase === 'placement');
+  const running = m.remaining !== null && !m.paused;
+  document.body.classList.toggle('urgent', !!live && running && m.remaining <= WARN_SECONDS);
+  paintBanner();
+});
+gameClock.onWarning((secondsLeft) => {
+  if (view && (view.phase === 'battle' || view.phase === 'placement')) sfx.tick(secondsLeft);
+});
 net.on('events', (m) => m.events.forEach((event) => {
   if (event.type !== 'shot') return;
   fresh.add(key(event.payload.row, event.payload.col));
@@ -36,14 +46,7 @@ function render() {
 
   gameClock.setLabel(view.phase === 'placement' ? 'Deploying' : view.paused ? 'Paused' : 'Turn');
 
-  const banner = $('#turnBanner');
-  const active = (view.teams || []).find((t) => t.slot === view.turn);
-  banner.className = 'turn-banner' + (view.phase === 'battle' && !view.paused ? ' yours' : ' waiting');
-  banner.textContent =
-    view.phase === 'placement' ? 'Fleets deploying'
-    : view.phase === 'finished' ? 'Battle over'
-    : view.paused ? 'Paused'
-    : active ? `${active.name} to fire` : 'Standing by';
+  paintBanner();
 
   for (const slot of [1, 2]) {
     const team = (view.teams || []).find((t) => t.slot === slot);
@@ -69,6 +72,22 @@ function render() {
   }
   if (view.phase !== 'finished') { overlayShown = false; $('#overlayHost').textContent = ''; }
   fresh = new Set();
+}
+
+/** Repainted on new state and on every clock tick. */
+function paintBanner() {
+  if (!view) return;
+  const banner = $('#turnBanner');
+  const active = (view.teams || []).find((t) => t.slot === view.turn);
+  const urgent = document.body.classList.contains('urgent');
+  banner.className = 'turn-banner'
+    + (view.phase === 'battle' && !view.paused ? ' yours' : ' waiting')
+    + (urgent ? ' urgent' : '');
+  banner.textContent =
+    view.phase === 'placement' ? (urgent ? 'Deploy now — time almost up' : 'Fleets deploying')
+    : view.phase === 'finished' ? 'Battle over'
+    : view.paused ? 'Paused'
+    : active ? `${active.name} to fire${urgent ? ' — hurry!' : ''}` : 'Standing by';
 }
 
 const soundToggle = $('#soundToggle');
