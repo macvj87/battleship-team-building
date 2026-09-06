@@ -19,13 +19,27 @@ PORT = int(os.environ.get("PORT", 8000))
 
 GRID_SIZE = 10     # a 10 x 10 board, columns A-J and rows 1-10
 
-# The classic fleet. (key, display name, length in cells)
+def line(length):
+    """A straight ship lying west-east, `length` cells long."""
+    return [(0, i) for i in range(length)]
+
+
+# The fleet. (key, display name, shape)
+#
+# A shape is the list of cells a ship covers, as (row, col) offsets from its
+# top-left corner. Anything that fits on the grid works, not just straight
+# lines, and every ship can be turned through four quarter-turns.
+#
+# The classic fleet gives the Cruiser and the Submarine three cells each, which
+# makes them impossible to tell apart once they are on the board. The Submarine
+# here is a T - three across with a conning tower above the middle - so it is
+# unmistakable at a glance, whatever it sits next to.
 FLEET = [
-    ("carrier",     "Carrier",     5),
-    ("battleship",  "Battleship",  4),
-    ("cruiser",     "Cruiser",     3),
-    ("submarine",   "Submarine",   3),
-    ("destroyer",   "Destroyer",   2),
+    ("carrier",     "Carrier",     line(5)),
+    ("battleship",  "Battleship",  line(4)),
+    ("cruiser",     "Cruiser",     line(3)),
+    ("submarine",   "Submarine",   [(1, 0), (1, 1), (1, 2), (0, 1)]),
+    ("destroyer",   "Destroyer",   line(2)),
 ]
 
 # --- Timers (seconds) --------------------------------------------------------

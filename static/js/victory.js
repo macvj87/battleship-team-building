@@ -72,7 +72,10 @@ export function victoryOverlay(view, { youSlot = null, onClose = null } = {}) {
     el('div', { class: 'stat' }, [el('span', {}, 'Shots fired'), el('b', {}, String(s.shots))]),
     el('div', { class: 'stat' }, [el('span', {}, 'Hits'), el('b', {}, String(s.hits))]),
     el('div', { class: 'stat' }, [el('span', {}, 'Accuracy'), el('b', {}, `${s.accuracy}%`)]),
-    el('div', { class: 'stat' }, [el('span', {}, 'Ships sunk'), el('b', {}, `${s.sunk ?? '-'} / 5`)]),
+    el('div', { class: 'stat' }, [
+      el('span', {}, 'Ships sunk'),
+      el('b', {}, `${s.sunk ?? '-'} / ${s.fleetSize ?? 5}`),
+    ]),
   ]));
 
   const crest = el('div', { class: `crest${youLost ? ' quiet' : ''}` });

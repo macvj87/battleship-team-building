@@ -111,9 +111,10 @@ export class BoardView {
 
     for (const ship of ships) {
       if (!ship.cells || !ship.cells.length) continue;
-      const hull = this._hull(ship);
-      this.overlay.push(hull);
-      this.grid.append(hull);
+      for (const hull of this._hulls(ship)) {
+        this.overlay.push(hull);
+        this.grid.append(hull);
+      }
     }
 
     const sunkSet = new Set(sunkCells);
@@ -129,34 +130,47 @@ export class BoardView {
 
     this.grid.classList.toggle('aimable', !!data.aimable);
     this.grid.classList.toggle('placing', !!data.placing);
-    if (this.ghost) this.grid.append(this.ghost);   // keep the ghost on top
+    if (this.ghost) this.ghost.forEach((part) => this.grid.append(part));  // keep on top
   }
 
-  _hull(ship) {
-    const rows = ship.cells.map((cell) => cell[0]);
-    const cols = ship.cells.map((cell) => cell[1]);
-    const hull = el('div', { class: `ship-piece${ship.sunk ? ' sunk' : ''}${ship.selected ? ' selected' : ''}` });
-    hull.style.gridRow = `${Math.min(...rows) + 1} / span ${Math.max(...rows) - Math.min(...rows) + 1}`;
-    hull.style.gridColumn = `${Math.min(...cols) + 1} / span ${Math.max(...cols) - Math.min(...cols) + 1}`;
-    return hull;
+  _hulls(ship) {
+    const rects = rectsCovering(ship.cells);
+    const multi = rects.length > 1;
+    return rects.map(([r0, c0, r1, c1]) => {
+      const hull = el('div', {
+        class: 'ship-piece'
+          + (multi ? ' part' : '')
+          + (ship.sunk ? ' sunk' : '')
+          + (ship.selected ? ' selected' : ''),
+      });
+      hull.style.gridRow = `${r0 + 1} / span ${r1 - r0 + 1}`;
+      hull.style.gridColumn = `${c0 + 1} / span ${c1 - c0 + 1}`;
+      return hull;
+    });
   }
 
   /** Translucent preview of where a ship would land. */
   showGhost(cells, valid) {
     this.clearGhost();
     if (!cells || !cells.length) return;
-    const rows = cells.map((cell) => cell[0]);
-    const cols = cells.map((cell) => cell[1]);
     const inside = cells.every(([r, c]) => r >= 0 && c >= 0 && r < this.size && c < this.size);
     if (!inside) return;
-    this.ghost = el('div', { class: `ship-piece ghost${valid ? '' : ' invalid'}` });
-    this.ghost.style.gridRow = `${Math.min(...rows) + 1} / span ${rows.length ? Math.max(...rows) - Math.min(...rows) + 1 : 1}`;
-    this.ghost.style.gridColumn = `${Math.min(...cols) + 1} / span ${cols.length ? Math.max(...cols) - Math.min(...cols) + 1 : 1}`;
-    this.grid.append(this.ghost);
+
+    const rects = rectsCovering(cells);
+    const multi = rects.length > 1;
+    this.ghost = rects.map(([r0, c0, r1, c1]) => {
+      const part = el('div', {
+        class: `ship-piece ghost${multi ? ' part' : ''}${valid ? '' : ' invalid'}`,
+      });
+      part.style.gridRow = `${r0 + 1} / span ${r1 - r0 + 1}`;
+      part.style.gridColumn = `${c0 + 1} / span ${c1 - c0 + 1}`;
+      this.grid.append(part);
+      return part;
+    });
   }
 
   clearGhost() {
-    if (this.ghost) { this.ghost.remove(); this.ghost = null; }
+    if (this.ghost) { this.ghost.forEach((part) => part.remove()); this.ghost = null; }
   }
 
   shake(hard = false) {
@@ -193,6 +207,63 @@ export class BoardView {
     this.grid.append(burst, plate);
     setTimeout(() => { burst.remove(); plate.remove(); }, 2000);
   }
+}
+
+/**
+ * Cover a set of cells with as few rectangles as possible.
+ *
+ * A ship is drawn as solid blocks rather than one box per cell, because the
+ * grid has a gap between cells and a block spans its own gaps - that is what
+ * makes a five-cell Carrier read as one hull instead of five squares.
+ *
+ * A straight ship comes back as a single rectangle, exactly as before. A
+ * shaped ship - the T-shaped Submarine - comes back as its longest horizontal
+ * run plus its longest vertical run, which overlap on the cell they share, so
+ * no seam shows where they meet.
+ */
+export function rectsCovering(cells) {
+  const at = (r, c) => `${r},${c}`;
+  const rects = [];
+  const covered = new Set();
+
+  const runs = (groups, build) => {
+    for (const [fixed, movingValues] of groups) {
+      const moving = [...movingValues].sort((a, b) => a - b);
+      let i = 0;
+      while (i < moving.length) {
+        let j = i;
+        while (j + 1 < moving.length && moving[j + 1] === moving[j] + 1) j++;
+        if (j > i) {                      // only runs of two or more are worth a block
+          rects.push(build(fixed, moving[i], moving[j]));
+          for (let k = moving[i]; k <= moving[j]; k++) covered.add(build.mark(fixed, k));
+        }
+        i = j + 1;
+      }
+    }
+  };
+
+  const byRow = new Map();
+  const byCol = new Map();
+  for (const [r, c] of cells) {
+    if (!byRow.has(r)) byRow.set(r, []);
+    if (!byCol.has(c)) byCol.set(c, []);
+    byRow.get(r).push(c);
+    byCol.get(c).push(r);
+  }
+
+  const horizontal = (r, c0, c1) => [r, c0, r, c1];
+  horizontal.mark = (r, c) => at(r, c);
+  runs(byRow, horizontal);
+
+  const vertical = (c, r0, r1) => [r0, c, r1, c];
+  vertical.mark = (c, r) => at(r, c);
+  runs(byCol, vertical);
+
+  // A cell with no neighbour in either direction still needs its own block.
+  for (const [r, c] of cells) {
+    if (!covered.has(at(r, c))) rects.push([r, c, r, c]);
+  }
+  return rects;
 }
 
 /** Turn a server board payload into what BoardView.render() wants. */

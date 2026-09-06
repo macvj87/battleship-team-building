@@ -34,14 +34,17 @@ async function start(candidate) {
 // ---------------------------------------------------------------- live view
 let view = null;
 let net = null;
+let fleetSizes = {};              // {carrier: 5, ...} straight from the server
+let fleetReady = Promise.resolve();
 const gameClock = makeClock('Time');
 
 function boot() {
   $('#clockHost').append(gameClock.node);
 
-  fetch('/api/info').then((r) => r.json()).then((info) => {
+  fleetReady = fetch('/api/info').then((r) => r.json()).then((info) => {
     $('#lanUrl').textContent = info.lanUrl;
     $('#projectorLink').href = `${info.lanUrl}/board`;
+    fleetSizes = Object.fromEntries(info.fleet.map((s) => [s.key, s.size]));
   });
 
   net = connect({ role: 'admin', key: adminKey }, {
@@ -248,6 +251,7 @@ async function loadHistory() {
 const replay = { events: [], shots: [], index: 0, fleets: {}, boards: {}, timer: null, names: {} };
 
 async function openReplay(gameId) {
+  await fleetReady;               // we need the ship sizes before drawing
   const data = await fetch(`/api/replay/${gameId}?key=${encodeURIComponent(adminKey)}`).then((r) => r.json());
   replay.events = data.events;
   replay.shots = data.events.filter((e) => e.type === 'shot');
@@ -285,11 +289,16 @@ async function openReplay(gameId) {
   $('#replayPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/** Ship layouts stored as {key,row,col,horizontal} -> the cells they cover. */
+/** Ship layouts from a recording -> the cells they cover.
+ *
+ *  Recordings now store the cells outright, so a match replays with the ships
+ *  exactly as they were even after the fleet in config.py changes shape.
+ *  Older recordings only kept a position and an orientation, from when every
+ *  ship was a straight line; those are rebuilt the old way. */
 function fleetCells(layout) {
-  const sizes = { carrier: 5, battleship: 4, cruiser: 3, submarine: 3, destroyer: 2 };
   return (layout || []).filter((s) => s.row !== null && s.row !== undefined).map((s) => {
-    const size = sizes[s.key] || 3;
+    if (s.cells && s.cells.length) return { key: s.key, cells: s.cells };
+    const size = s.size || fleetSizes[s.key] || 3;
     const cells = Array.from({ length: size }, (_, i) =>
       s.horizontal ? [s.row, s.col + i] : [s.row + i, s.col]);
     return { key: s.key, cells };

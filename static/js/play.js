@@ -32,7 +32,7 @@ const enemyBoard = new BoardView($('#enemyBoard'));
 // ---------------------------------------------------------------- state
 let view = null;                 // latest server state
 let selected = null;             // ship key being positioned
-let horizontal = true;
+let rotation = 0;                // quarter turns clockwise, 0-3
 let hover = null;                // [row, col] under the cursor
 let freshCells = new Set();      // cells that should animate on the next render
 let pendingSunk = null;          // a ship went down; celebrate it after the redraw
@@ -114,7 +114,7 @@ function render() {
 
   renderVersus();
   show(view.phase === 'lobby' ? 'lobby' : view.phase === 'placement' ? 'placement' : 'battle');
-  gameClock.setLabel(view.phase === 'placement' ? 'To deploy' : view.paused ? 'Paused' : 'Your turn');
+  gameClock.setLabel(clockLabel());
 
   if (view.phase === 'placement') {
     renderPlacement();
@@ -135,6 +135,16 @@ function render() {
     overlayHost.textContent = '';
   }
   freshCells = new Set();
+}
+
+/** What the countdown is actually counting. It used to always say "your turn",
+ *  so a team waiting on the other side watched a red clock apparently telling
+ *  them to hurry up. */
+function clockLabel() {
+  if (view.phase === 'placement') return 'To deploy';
+  if (view.paused) return 'Paused';
+  if (view.phase !== 'battle') return 'Time';
+  return view.turn === view.you ? 'Your turn' : 'Their turn';
 }
 
 function show(name) {
@@ -191,7 +201,7 @@ function renderPlacement() {
   const tray = $('#tray');
   tray.textContent = '';
   for (const ship of ships) {
-    const pips = el('div', { class: 'pips' }, Array.from({ length: ship.size }, () => el('i', { class: 'pip' })));
+    const pips = shapeIcon(ship.shape);
     tray.append(el('div', {
       class: `tray-ship${selected === ship.key ? ' active' : ''}${ship.placed ? ' done' : ''}`,
       onclick: () => { if (!locked) { selected = selected === ship.key ? null : ship.key; render(); } },
@@ -214,10 +224,33 @@ function shipByKey(k) {
   return view.yourBoard.ships.find((s) => s.key === k);
 }
 
+/** Turn a shape clockwise and pull it back to the top-left corner. Mirrors
+ *  `rotate()` in game.py - the server checks the same thing on arrival. */
+function rotateShape(shape, turns) {
+  let cells = shape.map(([r, c]) => [r, c]);
+  for (let i = 0; i < ((turns % 4) + 4) % 4; i++) cells = cells.map(([r, c]) => [c, -r]);
+  const top = Math.min(...cells.map(([r]) => r));
+  const left = Math.min(...cells.map(([, c]) => c));
+  return cells.map(([r, c]) => [r - top, c - left]);
+}
+
 function ghostCells(ship, row, col) {
-  return horizontal
-    ? Array.from({ length: ship.size }, (_, i) => [row, col + i])
-    : Array.from({ length: ship.size }, (_, i) => [row + i, col]);
+  return rotateShape(ship.shape, rotation).map(([dr, dc]) => [row + dr, col + dc]);
+}
+
+/** A small picture of the ship's actual shape, so a T reads as a T in the
+ *  ship list rather than as four anonymous dots. */
+function shapeIcon(shape) {
+  const rows = Math.max(...shape.map((cell) => cell[0])) + 1;
+  const cols = Math.max(...shape.map((cell) => cell[1])) + 1;
+  const filled = new Set(shape.map(([r, c]) => `${r},${c}`));
+  const icon = el('div', { class: 'pips', style: `grid-template-columns: repeat(${cols}, 1fr)` });
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      icon.append(el('i', { class: filled.has(`${r},${c}`) ? 'pip' : 'pip blank' }));
+    }
+  }
+  return icon;
 }
 
 /** Same check the server makes, done locally so the preview is instant. */
@@ -251,13 +284,14 @@ placementBoard.listen({
       const under = view.yourBoard.ships.find(
         (s) => s.placed && s.cells.some(([r, c]) => r === row && c === col),
       );
-      if (under) { selected = under.key; hover = [row, col]; render(); }
+      // Pick it up facing the way it already sits, so it doesn't jump.
+      if (under) { selected = under.key; rotation = under.rotation || 0; hover = [row, col]; render(); }
       return;
     }
     const ship = shipByKey(selected);
     const cells = ghostCells(ship, row, col);
     if (!isValid(ship, cells)) { toast(`${ship.name} doesn't fit there`); return; }
-    net.send({ type: 'place', ship: ship.key, row, col, horizontal });
+    net.send({ type: 'place', ship: ship.key, row, col, rotation });
     sfx.place();
     // Move on to the next ship that still needs a home.
     const remaining = view.yourBoard.ships.filter((s) => !s.placed && s.key !== ship.key);
@@ -265,7 +299,7 @@ placementBoard.listen({
   },
 });
 
-$('#rotateBtn').addEventListener('click', () => { horizontal = !horizontal; drawGhost(); });
+$('#rotateBtn').addEventListener('click', () => { rotation = (rotation + 1) % 4; drawGhost(); });
 $('#randomBtn').addEventListener('click', () => { selected = null; net.send({ type: 'randomize' }); sfx.place(); });
 $('#clearBtn').addEventListener('click',  () => { selected = null; net.send({ type: 'clear' }); });
 $('#readyBtn').addEventListener('click',  () => {
@@ -275,7 +309,7 @@ $('#readyBtn').addEventListener('click',  () => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key.toLowerCase() === 'r') { horizontal = !horizontal; drawGhost(); }
+  if (event.key.toLowerCase() === 'r') { rotation = (rotation + 1) % 4; drawGhost(); }
 });
 
 // ---- battle ----------------------------------------------------------------
@@ -338,7 +372,7 @@ function renderFleetStatus(host, badge, board, suffix) {
       class: `fleet-chip${ship.sunk ? ' sunk' : ''}`,
       title: `${ship.name} — ${ship.size} cells${ship.sunk ? ' — sunk' : ''}`,
     }, [
-      el('span', { class: 'pips' }, Array.from({ length: ship.size }, () => el('i'))),
+      shapeIcon(ship.shape),
       el('span', { class: 'nm' }, ship.name),
     ]));
   }

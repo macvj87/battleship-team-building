@@ -297,6 +297,20 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   animation: sink-flash 0.9s ease;
 }
 .ship-piece.sunk::after { border-color: rgba(255, 160, 180, 0.3); }
+/* A shaped ship is drawn as overlapping blocks. They share a cell where they
+   meet, so a flat fill and no border keeps the join invisible - a gradient or
+   an outline would draw a seam straight through the middle of the hull. */
+.ship-piece.part {
+  background: #35526f;
+  border: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+.ship-piece.part::after { display: none; }
+.ship-piece.part.sunk {
+  background: #6f2231;
+  box-shadow: 0 0 22px rgba(255, 77, 109, 0.45), 0 3px 12px rgba(0, 0, 0, 0.5);
+}
+
 .ship-piece.ghost { opacity: 0.62; z-index: 4; animation: none; }
 .ship-piece.ghost.invalid {
   background: linear-gradient(160deg, #7a2434, #4a1220);
@@ -414,7 +428,7 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   color: var(--text);
   transition: opacity 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
-.fleet-chip .pips { display: flex; gap: 2px; }
+.fleet-chip .pips { display: grid; gap: 2px; }
 .fleet-chip .pips i {
   width: 7px;
   height: 7px;
@@ -536,8 +550,10 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 .tray-ship:hover { border-color: rgba(90, 170, 220, 0.35); transform: translateX(2px); }
 .tray-ship.active { border-color: rgba(60, 224, 255, 0.75); background: rgba(20, 60, 90, 0.6); box-shadow: 0 0 0 3px rgba(60, 224, 255, 0.1); }
 .tray-ship.done { opacity: 0.55; }
-.tray-ship .pips { display: flex; gap: 3px; }
-.tray-ship .pip { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(160deg, #43607f, #24384f); border: 1px solid rgba(150, 190, 225, 0.3); }
+/* A little picture of the ship's shape - a grid, so a T looks like a T. */
+.tray-ship .pips { display: grid; gap: 2px; }
+.tray-ship .pip { width: 11px; height: 11px; border-radius: 3px; background: linear-gradient(160deg, #43607f, #24384f); border: 1px solid rgba(150, 190, 225, 0.3); }
+.pip.blank { background: none !important; border-color: transparent !important; box-shadow: none !important; }
 .tray-ship .meta { flex: 1; }
 .tray-ship .meta strong { display: block; font-size: 13px; font-weight: 600; }
 .tray-ship .meta span { font: 500 11px/1.4 var(--mono); color: var(--dim); }

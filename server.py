@@ -265,7 +265,10 @@ def lan_url() -> str:
 def api_info():
     return {
         "gridSize": config.GRID_SIZE,
-        "fleet": [{"key": k, "name": n, "size": s} for k, n, s in config.FLEET],
+        "fleet": [
+            {"key": k, "name": n, "size": len(shape), "shape": [list(c) for c in shape]}
+            for k, n, shape in config.FLEET
+        ],
         "lanUrl": lan_url(),
     }
 
@@ -398,7 +401,7 @@ async def handle(client: Client, message: dict) -> None:
                 return
             if kind == "place":
                 session.place(player, message["ship"], message["row"], message["col"],
-                              bool(message["horizontal"]))
+                              int(message.get("rotation", 0)))
             elif kind == "unplace":
                 session.unplace(player, message["ship"])
             elif kind == "randomize":

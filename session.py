@@ -171,9 +171,9 @@ class Session:
         if player.ready:
             raise RuleError("Your fleet is locked in - press Edit to change it")
 
-    def place(self, player: Player, key: str, row: int, col: int, horizontal: bool) -> None:
+    def place(self, player: Player, key: str, row: int, col: int, rotation: int) -> None:
         self._placing(player)
-        player.fleet.place(key, row, col, horizontal)
+        player.fleet.place(key, row, col, rotation)
 
     def unplace(self, player: Player, key: str) -> None:
         self._placing(player)
@@ -385,6 +385,7 @@ class Session:
                 "hits": p.hits,
                 "accuracy": round(p.accuracy, 1),
                 "sunk": self._sunk_count(self._other(p.slot)),
+                "fleetSize": len(config.FLEET),
             }
             for p in sorted(self.players.values(), key=lambda x: x.slot)
         ]

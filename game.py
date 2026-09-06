@@ -21,6 +21,24 @@ class RuleError(Exception):
     """Raised when a player tries to do something the rules don't allow."""
 
 
+def rotate(shape, quarter_turns: int) -> List[Cell]:
+    """Turn a shape clockwise and pull it back to the top-left corner.
+
+    A quarter turn clockwise sends (row, col) to (col, -row); normalising
+    afterwards keeps every shape anchored at (0, 0) so a ship's position always
+    means the same thing whichever way it is facing.
+
+    A straight ship only has two distinct faces, so turns 0 and 2 come out
+    identical - pressing rotate still flips it, which is what you expect.
+    """
+    cells = [(int(r), int(c)) for r, c in shape]
+    for _ in range(quarter_turns % 4):
+        cells = [(c, -r) for r, c in cells]
+    top = min(r for r, _ in cells)
+    left = min(c for _, c in cells)
+    return [(r - top, c - left) for r, c in cells]
+
+
 # -----------------------------------------------------------------------------
 # Ship
 # -----------------------------------------------------------------------------
@@ -29,11 +47,16 @@ class RuleError(Exception):
 class Ship:
     key: str
     name: str
-    size: int
+    shape: List[Cell]                  # cells it covers, facing its base direction
     row: Optional[int] = None          # None means "not placed on the board yet"
     col: Optional[int] = None
-    horizontal: bool = True
+    rotation: int = 0                  # quarter turns clockwise, 0-3
     hits: Set[Cell] = field(default_factory=set)
+
+    @property
+    def size(self) -> int:
+        """How many cells the ship covers - not how long it is."""
+        return len(self.shape)
 
     @property
     def placed(self) -> bool:
@@ -43,26 +66,41 @@ class Ship:
     def sunk(self) -> bool:
         return len(self.hits) >= self.size
 
+    def offsets(self) -> List[Cell]:
+        """The shape as it currently faces."""
+        return rotate(self.shape, self.rotation)
+
+    def extent(self) -> Tuple[int, int]:
+        """(height, width) of the box the ship currently needs."""
+        offs = self.offsets()
+        return max(r for r, _ in offs) + 1, max(c for _, c in offs) + 1
+
     def cells(self) -> List[Cell]:
         """Every cell this ship occupies, or an empty list if unplaced."""
         if not self.placed:
             return []
-        if self.horizontal:
-            return [(self.row, self.col + i) for i in range(self.size)]
-        return [(self.row + i, self.col) for i in range(self.size)]
+        return [(self.row + dr, self.col + dc) for dr, dc in self.offsets()]
 
     def to_dict(self, reveal: bool = True) -> dict:
         """Serialise for sending to a browser.
 
         `reveal=False` hides the position, which is how we describe a ship to
-        the team that is trying to sink it.
+        the team that is trying to sink it. The shape is not a secret - both
+        teams know a Submarine is a T - so it always goes out, and the placing
+        team needs it to preview a rotation before committing.
         """
-        data = {"key": self.key, "name": self.name, "size": self.size, "sunk": self.sunk}
+        data = {
+            "key": self.key,
+            "name": self.name,
+            "size": self.size,
+            "shape": [list(cell) for cell in self.shape],
+            "sunk": self.sunk,
+        }
         if reveal:
             data.update({
                 "row": self.row,
                 "col": self.col,
-                "horizontal": self.horizontal,
+                "rotation": self.rotation,
                 "placed": self.placed,
                 "cells": self.cells(),
                 "hits": sorted(self.hits),
@@ -78,7 +116,7 @@ class Fleet:
     """One team's board: their five ships and every shot fired at them."""
 
     def __init__(self) -> None:
-        self.ships: List[Ship] = [Ship(key, name, size) for key, name, size in FLEET]
+        self.ships: List[Ship] = [Ship(key, name, list(shape)) for key, name, shape in FLEET]
         # Shots the *opponent* has fired at this board: {(row, col): "hit" | "miss"}
         self.incoming: Dict[Cell, str] = {}
 
@@ -104,10 +142,11 @@ class Fleet:
 
     # --- placement -----------------------------------------------------------
 
-    def place(self, key: str, row: int, col: int, horizontal: bool) -> None:
+    def place(self, key: str, row: int, col: int, rotation: int = 0) -> None:
         """Put a ship on the board, replacing its previous position."""
         ship = self.ship(key)
-        cells = self._cells_for(ship.size, row, col, horizontal)
+        rotation = int(rotation) % 4
+        cells = [(row + dr, col + dc) for dr, dc in rotate(ship.shape, rotation)]
 
         # Every cell must be inside the grid.
         for r, c in cells:
@@ -121,7 +160,7 @@ class Fleet:
             if cell in taken:
                 raise RuleError("%s would overlap the %s" % (ship.name, taken[cell].name))
 
-        ship.row, ship.col, ship.horizontal = row, col, horizontal
+        ship.row, ship.col, ship.rotation = row, col, rotation
 
     def unplace(self, key: str) -> None:
         ship = self.ship(key)
@@ -166,23 +205,18 @@ class Fleet:
 
     def _place_randomly(self, ship: Ship, rng: random.Random) -> None:
         for attempt in range(200):
-            horizontal = rng.random() < 0.5
-            max_row = GRID_SIZE - (1 if horizontal else ship.size)
-            max_col = GRID_SIZE - (ship.size if horizontal else 1)
-            row = rng.randint(0, max_row)
-            col = rng.randint(0, max_col)
+            rotation = rng.randint(0, 3)
+            offs = rotate(ship.shape, rotation)
+            height = max(r for r, _ in offs) + 1
+            width = max(c for _, c in offs) + 1
+            row = rng.randint(0, GRID_SIZE - height)
+            col = rng.randint(0, GRID_SIZE - width)
             try:
-                self.place(ship.key, row, col, horizontal)
+                self.place(ship.key, row, col, rotation)
                 return
             except RuleError:
                 continue
         raise RuleError("No room for the %s" % ship.name)
-
-    @staticmethod
-    def _cells_for(size: int, row: int, col: int, horizontal: bool) -> List[Cell]:
-        if horizontal:
-            return [(row, col + i) for i in range(size)]
-        return [(row + i, col) for i in range(size)]
 
     # --- firing --------------------------------------------------------------
 
@@ -238,9 +272,15 @@ class Fleet:
         }
 
     def save(self) -> list:
-        """Compact form for the database, so a game can be replayed later."""
+        """Compact form for the database, so a game can be replayed later.
+
+        The size is recorded alongside the position: the fleet in config.py can
+        change between matches, and a replay should show the ships as they
+        actually were, not as they are today.
+        """
         return [
-            {"key": s.key, "row": s.row, "col": s.col, "horizontal": s.horizontal}
+            {"key": s.key, "size": s.size, "row": s.row, "col": s.col,
+             "rotation": s.rotation, "cells": s.cells()}
             for s in self.ships
         ]
 
