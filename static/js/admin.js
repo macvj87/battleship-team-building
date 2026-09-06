@@ -59,6 +59,14 @@ function boot() {
       };
     }
   }));
+  net.on('aim', (m) => {
+    const board = liveBoards[m.target];
+    if (!board) return;
+    if (!m.active) { board.hidePointer(); return; }
+    const team = ((view && view.teams) || []).find((t) => t.slot === m.slot);
+    board.showPointer(m.x, m.y, { slot: m.slot, label: team ? team.name : '' });
+  });
+
   net.on('state', (state) => { view = state; renderLive(); });
 
   wireControls();
@@ -129,6 +137,10 @@ function renderLive() {
     if (label) label.textContent = team ? team.name : '—';
     const board = (view.boards || {})[String(slot)];
     liveBoards[slot].render(fromServer(board));
+  }
+
+  if (view.phase !== 'battle' || view.paused) {
+    for (const slot of [1, 2]) if (liveBoards[slot]) liveBoards[slot].hidePointer();
   }
 
   if (pendingSunk && liveBoards[pendingSunk.slot]) {

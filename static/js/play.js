@@ -69,6 +69,14 @@ gameClock.onWarning((secondsLeft) => {
   if (waitingOnUs()) sfx.tick(secondsLeft);
 });
 net.on('events', (m) => m.events.forEach(handleEvent));
+
+// The other team's crosshair, drifting over your own fleet.
+net.on('aim', (m) => {
+  if (!view || m.target !== view.you) return;
+  if (!m.active) { yourBoard.hidePointer(); return; }
+  const them = (view.teams || []).find((t) => t.slot === m.slot);
+  yourBoard.showPointer(m.x, m.y, { slot: m.slot, label: them ? them.name : 'Incoming' });
+});
 net.on('state', (state) => { view = state; render(); });
 
 /** Events arrive just before the state that contains them - use them for
@@ -284,6 +292,9 @@ function renderBattle() {
   if (view.turn !== lastTurn && myTurn) sfx.turn();
   lastTurn = view.turn;
 
+  // Nobody is aiming at us unless it is their turn.
+  if (view.phase !== 'battle' || myTurn || view.paused) yourBoard.hidePointer();
+
   renderFleetStatus($('#enemyFleet'), $('#enemyAfloat'), view.enemyBoard, 'left to sink');
   renderFleetStatus($('#yourFleet'), $('#yourAfloat'), view.yourBoard, 'still afloat');
 
@@ -347,6 +358,53 @@ function playSunk({ by, name, cell }) {
   const ship = ((data && data.ships) || []).find((s) => s.sunk && s.name === name);
   board.celebrateSunk((ship && ship.cells) || [cell], name);
 }
+
+// ---- broadcasting where we are aiming --------------------------------------
+
+let lastAimSent = 0;
+let aimInside = false;              // is the cursor over the enemy grid?
+let lastAim = { x: 0, y: 0 };
+
+/** Send our position over the enemy grid as a 0..1 fraction of the board, so
+ *  it lands in the same spot on a laptop, a phone and the projector. */
+function sendAim(x, y, active = true) {
+  if (!view || view.phase !== 'battle' || view.turn !== view.you || view.paused) return;
+  const now = performance.now();
+  if (active && now - lastAimSent < 45) return;   // ~20 updates a second is plenty
+  lastAimSent = now;
+  net.send({ type: 'aim', x, y, active });
+}
+
+function aimFrom(clientX, clientY) {
+  // Measure against the padding box, because that is what a percentage `left`
+  // resolves against on the receiving end. Using the border box instead puts
+  // the crosshair a pixel off from where the hand actually is.
+  const grid = enemyBoard.grid;
+  const box = grid.getBoundingClientRect();
+  const x = (clientX - box.left - grid.clientLeft) / grid.clientWidth;
+  const y = (clientY - box.top - grid.clientTop) / grid.clientHeight;
+  aimInside = true;
+  lastAim = { x, y };
+  sendAim(x, y);
+}
+
+// A hand held still over one square - which is exactly the tense moment worth
+// watching - stops firing mousemove, so repeat the last position while the
+// cursor is still over the board. Without this the crosshair vanishes just as
+// the other team is deciding.
+setInterval(() => {
+  if (!aimInside) return;
+  lastAimSent = 0;                  // heartbeats skip the throttle
+  sendAim(lastAim.x, lastAim.y);
+}, 900);
+
+enemyBoard.grid.addEventListener('mousemove', (event) => aimFrom(event.clientX, event.clientY));
+enemyBoard.grid.addEventListener('mouseleave', () => { aimInside = false; sendAim(0, 0, false); });
+enemyBoard.grid.addEventListener('touchmove', (event) => {
+  const touch = event.touches[0];
+  if (touch) aimFrom(touch.clientX, touch.clientY);
+}, { passive: true });
+enemyBoard.grid.addEventListener('touchend', () => { aimInside = false; sendAim(0, 0, false); });
 
 enemyBoard.listen({
   onClick(row, col) {

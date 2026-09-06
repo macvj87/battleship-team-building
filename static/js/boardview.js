@@ -38,6 +38,44 @@ export class BoardView {
 
     this.overlay = [];   // ship hulls and markers, rebuilt on every render
     this.ghost = null;
+    this.pointer = null;      // the opposing team's crosshair
+    this.pointerTimer = null;
+  }
+
+  /**
+   * Show where the other team is aiming, as a fraction of the board
+   * (0..1 on each axis) rather than pixels, so it lands in the same place on
+   * a laptop and on a projector.
+   *
+   * The position is CSS-transitioned between updates, which turns a stream of
+   * samples into smooth movement without sending more of them.
+   */
+  showPointer(x, y, { slot = 1, label = '' } = {}) {
+    if (!this.pointer) {
+      this.pointer = el('div', { class: 'aim-pointer' }, [
+        el('span', { class: 'ring' }),
+        el('span', { class: 'tag' }, label),
+      ]);
+      this.grid.append(this.pointer);
+    }
+    this.pointer.className = `aim-pointer slot-${slot}`;
+    this.pointer.querySelector('.tag').textContent = label;
+    this.pointer.style.left = `${x * 100}%`;
+    this.pointer.style.top = `${y * 100}%`;
+
+    // If the other end goes quiet - tab closed, network dropped - don't leave
+    // a crosshair stranded on the board.
+    clearTimeout(this.pointerTimer);
+    this.pointerTimer = setTimeout(() => this.hidePointer(), 2500);
+  }
+
+  hidePointer() {
+    clearTimeout(this.pointerTimer);
+    if (!this.pointer) return;
+    const node = this.pointer;
+    this.pointer = null;
+    node.classList.add('leaving');
+    setTimeout(() => node.remove(), 220);
   }
 
   /** Fires (row, col) on click, and (row, col) or (null) on hover. */

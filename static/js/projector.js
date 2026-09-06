@@ -42,6 +42,15 @@ net.on('events', (m) => m.events.forEach((event) => {
     sfx.miss();
   }
 }));
+// Show the firing team's crosshair on the board they are aiming at.
+net.on('aim', (m) => {
+  const board = boards[m.target];
+  if (!board) return;
+  if (!m.active) { board.hidePointer(); return; }
+  const team = ((view && view.teams) || []).find((t) => t.slot === m.slot);
+  board.showPointer(m.x, m.y, { slot: m.slot, label: team ? team.name : '' });
+});
+
 net.on('state', (state) => { view = state; render(); });
 
 function render() {
@@ -69,6 +78,11 @@ function render() {
     for (const ship of (board?.ships || [])) hp.append(el('i', { class: ship.sunk ? 'gone' : '' }));
 
     boards[slot].render(fromServer(board, { fresh }));
+  }
+
+  if (view.phase !== 'battle' || view.paused) {
+    boards[1].hidePointer();
+    boards[2].hidePointer();
   }
 
   if (pendingSunk) {

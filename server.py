@@ -118,6 +118,28 @@ class Hub:
         self._sent_upto = (session.id, session.seq)
         return fresh
 
+    async def relay_aim(self, slot: int, x: float, y: float, active: bool) -> None:
+        """Pass the firing team's crosshair on to everyone watching.
+
+        Deliberately not a state broadcast: this fires many times a second
+        while a mouse moves, and it carries nothing the game rules depend on.
+        The aiming team is skipped - they already have a real mouse pointer.
+        """
+        message = {
+            "type": "aim",
+            "slot": slot,
+            "target": 2 if slot == 1 else 1,   # whose waters are being aimed at
+            "x": x,
+            "y": y,
+            "active": active,
+        }
+        for client in list(self.clients):
+            if client.role == "player" and client.token:
+                aimer = client.player
+                if aimer and aimer.slot == slot:
+                    continue
+            await self.send(client, message)
+
     async def broadcast_clock(self) -> None:
         remaining = session.remaining()
         message = {
@@ -357,6 +379,14 @@ async def websocket_endpoint(ws: WebSocket):
                 await hub.broadcast()
 
 
+def _fraction(value) -> float:
+    """Clamp an incoming 0..1 position; anything odd becomes 0."""
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 async def handle(client: Client, message: dict) -> None:
     """Apply one client message to the session, then tell everybody."""
     kind = message.get("type")
@@ -379,6 +409,17 @@ async def handle(client: Client, message: dict) -> None:
                 session.set_ready(player, bool(message.get("ready", True)))
             elif kind == "fire":
                 session.fire(player, message["row"], message["col"])
+            elif kind == "aim":
+                # Only the team on the clock gives their aim away, and this
+                # never touches game state - relay it and stop here.
+                if session.phase == "battle" and session.turn == player.slot and not session.paused:
+                    await hub.relay_aim(
+                        player.slot,
+                        _fraction(message.get("x")),
+                        _fraction(message.get("y")),
+                        bool(message.get("active", True)),
+                    )
+                return
             else:
                 return
 

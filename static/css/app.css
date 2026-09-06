@@ -329,6 +329,68 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 .mark.fresh.miss { animation: splash 0.65s ease-out; }
 .mark.fresh.hit, .mark.fresh.sunk { animation: blast 0.6s ease-out; }
 
+/* --- the other team's crosshair ------------------------------------------
+   Broadcast while the firing team hovers over your waters. Half the fun of
+   the game is watching it circle the square your Carrier is under. */
+.aim-pointer {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: left 0.09s linear, top 0.09s linear, opacity 0.2s ease;
+}
+.aim-pointer.leaving { opacity: 0; }
+
+.aim-pointer .ring {
+  display: block;
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan);
+  box-shadow: 0 0 16px rgba(60, 224, 255, 0.7), inset 0 0 12px rgba(60, 224, 255, 0.3);
+  animation: aim-breathe 1.6s ease-in-out infinite;
+}
+/* the cross of the crosshair, drawn through the ring */
+.aim-pointer .ring::before,
+.aim-pointer .ring::after {
+  content: "";
+  position: absolute;
+  background: var(--cyan);
+  opacity: 0.65;
+}
+.aim-pointer .ring::before { left: 50%; top: -10px; width: 1px; height: 46px; transform: translateX(-50%); }
+.aim-pointer .ring::after  { top: 50%; left: -10px; height: 1px; width: 46px; transform: translateY(-50%); }
+
+.aim-pointer .tag {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  font: 700 9px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #04202b;
+  background: var(--cyan);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.aim-pointer.slot-2 .ring {
+  border-color: var(--violet);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.7), inset 0 0 12px rgba(167, 139, 250, 0.3);
+}
+.aim-pointer.slot-2 .ring::before,
+.aim-pointer.slot-2 .ring::after { background: var(--violet); }
+.aim-pointer.slot-2 .tag { background: var(--violet); color: #180b30; }
+
+@keyframes aim-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.14); }
+}
+
 /* --- fleet roster beside each board --------------------------------------
    One chip per ship, its pips showing how long it is. Sunk ships stay in the
    list rather than disappearing, so you can see what you have already
